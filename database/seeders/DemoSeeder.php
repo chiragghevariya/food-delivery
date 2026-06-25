@@ -103,7 +103,9 @@ class DemoSeeder extends Seeder
         $slug  = str_replace(' ', '', strtolower($name));
         $owner = $this->makeUser("$name Owner", "owner.$slug@demo.com", 'restaurant_owner');
 
-        return Restaurant::firstOrCreate(
+        $imageSlug = str_replace(' ', '_', strtolower($name));
+
+        return Restaurant::updateOrCreate(
             ['name' => $name],
             [
                 'user_id'     => $owner->id,
@@ -111,6 +113,8 @@ class DemoSeeder extends Seeder
                 'address'     => $address,
                 'lat'         => $lat,
                 'lng'         => $lng,
+                'logo'        => "restaurants/{$imageSlug}_logo.jpg",
+                'banner'      => "restaurants/{$imageSlug}_banner.jpg",
                 'is_open'     => true,
                 'rating'      => $rating,
             ]
@@ -127,6 +131,7 @@ class DemoSeeder extends Seeder
                     'category_id'  => $categoryName ? $categories->get($categoryName)?->id : null,
                     'description'  => $description,
                     'price'        => $price,
+                    'image'        => 'menu-items/' . strtolower(str_replace(' ', '_', $name)) . '.jpg',
                     'is_available' => true,
                 ]
             );

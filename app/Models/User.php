@@ -2,15 +2,18 @@
 
 namespace App\Models;
 
+use Filament\Models\Contracts\FilamentUser;   // lets us decide who can open each Filament panel
+use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;       // gives the user ->assignRole(), ->hasRole(), etc.
 use Tymon\JWTAuth\Contracts\JWTSubject;       // forces us to add the two JWT methods at the bottom
 
-class User extends Authenticatable implements JWTSubject
+class User extends Authenticatable implements JWTSubject, FilamentUser
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable, HasRoles;
@@ -86,6 +89,27 @@ class User extends Authenticatable implements JWTSubject
     }
 
     /**
+     * Decide which Filament web panel this user may sign in to.
+     *
+     * Login itself uses session auth (the "web" guard), but role checks below
+     * resolve against the "api" guard because $guard_name is fixed to 'api'
+     * on this model — so the same spatie roles used by the API gate the panels.
+     * An inactive account is locked out of every panel.
+     */
+    public function canAccessPanel(Panel $panel): bool
+    {
+        if (! $this->is_active) {
+            return false;
+        }
+
+        return match ($panel->getId()) {
+            'admin'  => $this->hasRole('admin'),
+            'vendor' => $this->hasRole('restaurant_owner'),
+            default  => false,
+        };
+    }
+
+    /**
      * A restaurant_owner has one restaurant (used from Phase 2 onwards).
      */
     public function restaurant(): HasOne
@@ -107,6 +131,14 @@ class User extends Authenticatable implements JWTSubject
     public function deliveries(): HasMany
     {
         return $this->hasMany(Order::class, 'rider_id');
+    }
+
+    /**
+     * Payouts made to this user as a rider.
+     */
+    public function payouts(): MorphMany
+    {
+        return $this->morphMany(\App\Models\Payout::class, 'payee');
     }
 
     /*

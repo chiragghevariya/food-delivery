@@ -27,4 +27,20 @@ class Category extends Model
     {
         return $this->hasMany(MenuItem::class);
     }
+
+    /**
+     * Get the image attribute as a full URL if it is stored as a relative path.
+     */
+    public function getImageAttribute(?string $value): ?string
+    {
+        if (empty($value)) {
+            return null;
+        }
+
+        if (str_starts_with($value, 'http://') || str_starts_with($value, 'https://')) {
+            return $value;
+        }
+
+        return asset('storage/' . $value);
+    }
 }

@@ -35,6 +35,30 @@ enum OrderStatus: string
     }
 
     /**
+     * A human-friendly label, e.g. READY_FOR_PICKUP => "Ready For Pickup".
+     */
+    public function label(): string
+    {
+        return ucwords(str_replace('_', ' ', $this->value));
+    }
+
+    /**
+     * The Filament/UI colour used for this status everywhere (badges, timelines).
+     */
+    public function color(): string
+    {
+        return match ($this) {
+            self::PENDING          => 'gray',
+            self::ACCEPTED         => 'info',
+            self::PREPARING        => 'warning',
+            self::READY_FOR_PICKUP => 'warning',
+            self::PICKED_UP        => 'info',
+            self::DELIVERED        => 'success',
+            self::CANCELLED        => 'danger',
+        };
+    }
+
+    /**
      * The statuses an order is allowed to move to from THIS status.
      * This is what stops the flow from skipping steps.
      *
