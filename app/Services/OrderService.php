@@ -86,11 +86,54 @@ class OrderService
             $deliveryFee = self::DELIVERY_FEE;
             $total       = round($subtotal + $deliveryFee, 2);
 
+            // If payment_intent_id is provided, verify it with Stripe
+            if (!empty($data['payment_intent_id'])) {
+                // Verify that this payment_intent has not been used for another order
+                $exists = Order::where('payment_intent_id', $data['payment_intent_id'])->exists();
+                if ($exists) {
+                    throw ValidationException::withMessages([
+                        'payment_intent_id' => 'This payment has already been used for another order.',
+                    ]);
+                }
+
+                if (app()->environment('testing') && str_starts_with($data['payment_intent_id'], 'pi_mock_')) {
+                    if ($data['payment_intent_id'] === 'pi_mock_fail') {
+                        throw ValidationException::withMessages([
+                            'payment_intent_id' => 'Payment has not succeeded. Current status: failed',
+                        ]);
+                    }
+                } else {
+                    try {
+                        \Stripe\Stripe::setApiKey(config('services.stripe.secret'));
+                        $intent = \Stripe\PaymentIntent::retrieve($data['payment_intent_id']);
+
+                        if ($intent->status !== 'succeeded') {
+                            throw ValidationException::withMessages([
+                                'payment_intent_id' => 'Payment has not succeeded. Current status: ' . $intent->status,
+                            ]);
+                        }
+
+                        // Check that the paid amount matches the order total (converted to cents)
+                        $expectedCents = (int) round($total * 100);
+                        if ($intent->amount !== $expectedCents) {
+                            throw ValidationException::withMessages([
+                                'payment_intent_id' => 'Payment amount mismatch. Expected: ' . $total . ' USD, but got: ' . ($intent->amount / 100) . ' ' . $intent->currency,
+                            ]);
+                        }
+                    } catch (\Exception $e) {
+                        throw ValidationException::withMessages([
+                            'payment_intent_id' => 'Stripe verification failed: ' . $e->getMessage(),
+                        ]);
+                    }
+                }
+            }
+
             // 5) Create the order itself (status starts as "pending").
             $order = Order::create([
                 'customer_id'   => $customer->id,
                 'restaurant_id' => $restaurant->id,
                 'status'        => OrderStatus::PENDING,
+                'payment_intent_id' => $data['payment_intent_id'] ?? null,
                 'subtotal'      => $subtotal,
                 'delivery_fee'  => $deliveryFee,
                 'total'         => $total,
@@ -112,5 +155,79 @@ class OrderService
             // Return the order with everything the API needs to display it.
             return $order->load(['items.menuItem', 'statusHistory', 'restaurant']);
         });
+    }
+
+    /**
+     * Calculate cart price totals and create a Stripe PaymentIntent.
+     *
+     * @param  User   $customer
+     * @param  array  $data      validated input: restaurant_id, items[]
+     */
+    public function createPaymentIntent(User $customer, array $data): array
+    {
+        // 1) Load the restaurant and make sure it is open.
+        $restaurant = Restaurant::findOrFail($data['restaurant_id']);
+
+        if (! $restaurant->is_open) {
+            throw ValidationException::withMessages([
+                'restaurant_id' => 'This restaurant is currently closed.',
+            ]);
+        }
+
+        // 2) Load menu items
+        $itemIds = collect($data['items'])->pluck('menu_item_id');
+        $menuItems = MenuItem::where('restaurant_id', $restaurant->id)
+            ->where('is_available', true)
+            ->whereIn('id', $itemIds)
+            ->get()
+            ->keyBy('id');
+
+        $subtotal = 0;
+        foreach ($data['items'] as $line) {
+            $menuItem = $menuItems->get($line['menu_item_id']);
+            if (! $menuItem) {
+                throw ValidationException::withMessages([
+                    'items' => "Menu item #{$line['menu_item_id']} is not available for this restaurant.",
+                ]);
+            }
+            $quantity  = (int) $line['quantity'];
+            $unitPrice = (float) $menuItem->price;
+            $subtotal += round($unitPrice * $quantity, 2);
+        }
+
+        $subtotal = round($subtotal, 2);
+        $deliveryFee = self::DELIVERY_FEE;
+        $total = round($subtotal + $deliveryFee, 2);
+
+        // 3) Create Stripe PaymentIntent
+        if (app()->environment('testing')) {
+            return [
+                'payment_intent_id' => 'pi_mock_12345',
+                'client_secret' => 'pi_mock_12345_secret',
+                'amount' => $total,
+                'currency' => \App\Models\Setting::get('currency', 'USD'),
+            ];
+        }
+
+        \Stripe\Stripe::setApiKey(config('services.stripe.secret'));
+
+        $paymentIntent = \Stripe\PaymentIntent::create([
+            'amount' => (int) round($total * 100), // in cents
+            'currency' => strtolower(\App\Models\Setting::get('currency', 'USD')),
+            'metadata' => [
+                'customer_id' => $customer->id,
+                'restaurant_id' => $restaurant->id,
+            ],
+            'automatic_payment_methods' => [
+                'enabled' => true,
+            ],
+        ]);
+
+        return [
+            'payment_intent_id' => $paymentIntent->id,
+            'client_secret' => $paymentIntent->client_secret,
+            'amount' => $total,
+            'currency' => \App\Models\Setting::get('currency', 'USD'),
+        ];
     }
 }

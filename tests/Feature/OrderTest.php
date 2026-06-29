@@ -214,4 +214,93 @@ class OrderTest extends TestCase
             'address'       => '123 Test Street',
         ])->assertStatus(401);
     }
+
+    public function test_customer_can_create_payment_intent(): void
+    {
+        [$customer, $restaurant, $items] = $this->makeWorld();
+
+        $response = $this->actingAs($customer, 'api')->postJson('/api/orders/payment-intent', [
+            'restaurant_id' => $restaurant->id,
+            'items'         => [
+                ['menu_item_id' => $items['pizza']->id, 'quantity' => 1],
+            ],
+        ]);
+
+        $response->assertOk()
+            ->assertJsonStructure([
+                'payment_intent_id',
+                'client_secret',
+                'amount',
+                'currency',
+            ])
+            ->assertJsonPath('payment_intent_id', 'pi_mock_12345')
+            ->assertJsonPath('amount', 12); // 10.00 pizza + 2.00 delivery
+    }
+
+    public function test_customer_can_place_order_with_valid_payment_intent(): void
+    {
+        [$customer, $restaurant, $items] = $this->makeWorld();
+
+        $response = $this->actingAs($customer, 'api')->postJson('/api/orders', [
+            'restaurant_id' => $restaurant->id,
+            'items'         => [
+                ['menu_item_id' => $items['pizza']->id, 'quantity' => 1],
+            ],
+            'address' => '123 Test Street',
+            'payment_intent_id' => 'pi_mock_12345',
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.payment_intent_id', 'pi_mock_12345');
+
+        $this->assertDatabaseHas('orders', [
+            'customer_id' => $customer->id,
+            'payment_intent_id' => 'pi_mock_12345',
+        ]);
+    }
+
+    public function test_customer_cannot_use_duplicate_payment_intent(): void
+    {
+        [$customer, $restaurant, $items] = $this->makeWorld();
+
+        // Place first order with pi_mock_12345
+        $this->actingAs($customer, 'api')->postJson('/api/orders', [
+            'restaurant_id' => $restaurant->id,
+            'items'         => [
+                ['menu_item_id' => $items['pizza']->id, 'quantity' => 1],
+            ],
+            'address' => '123 First Street',
+            'payment_intent_id' => 'pi_mock_12345',
+        ])->assertCreated();
+
+        // Place second order with same pi_mock_12345
+        $response = $this->actingAs($customer, 'api')->postJson('/api/orders', [
+            'restaurant_id' => $restaurant->id,
+            'items'         => [
+                ['menu_item_id' => $items['pizza']->id, 'quantity' => 1],
+            ],
+            'address' => '123 Second Street',
+            'payment_intent_id' => 'pi_mock_12345',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['payment_intent_id']);
+    }
+
+    public function test_customer_cannot_place_order_with_failed_payment_intent(): void
+    {
+        [$customer, $restaurant, $items] = $this->makeWorld();
+
+        $response = $this->actingAs($customer, 'api')->postJson('/api/orders', [
+            'restaurant_id' => $restaurant->id,
+            'items'         => [
+                ['menu_item_id' => $items['pizza']->id, 'quantity' => 1],
+            ],
+            'address' => '123 Test Street',
+            'payment_intent_id' => 'pi_mock_fail',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['payment_intent_id']);
+    }
 }

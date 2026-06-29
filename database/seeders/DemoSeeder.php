@@ -31,11 +31,11 @@ class DemoSeeder extends Seeder
         $customer1 = $this->makeUser('Demo Customer One', 'customer1@demo.com', 'customer', '0300-1111111');
         $customer2 = $this->makeUser('Demo Customer Two', 'customer2@demo.com', 'customer', '0300-2222222');
 
-        $rider1 = $this->makeUser('Demo Rider One', 'rider1@demo.com', 'rider', '0300-3333333', ['lat' => 24.8600, 'lng' => 67.0100]);
-        $rider2 = $this->makeUser('Demo Rider Two', 'rider2@demo.com', 'rider', '0300-4444444', ['lat' => 24.8560, 'lng' => 67.0050]);
+        $rider1 = $this->makeUser('Demo Rider One', 'rider1@demo.com', 'rider', '0300-3333333', ['lat' => 21.7592, 'lng' => 72.1448]);
+        $rider2 = $this->makeUser('Demo Rider Two', 'rider2@demo.com', 'rider', '0300-4444444', ['lat' => 21.7681, 'lng' => 72.1505]);
 
         // -------- restaurants + menus --------
-        $bella = $this->makeRestaurant('Bella Italia', 'Authentic Italian pizzas and pastas.', 'Zamzama Boulevard, Karachi', 24.8615, 67.0099, 4.7);
+        $bella = $this->makeRestaurant('Bella Italia', 'Authentic Italian pizzas and pastas.', 'Waghawadi Road, Bhavnagar', 21.7580, 72.1450, 4.7);
         $this->seedMenu($bella, $categories, [
             ['Margherita Pizza', 'Pizza', 9.99, 'Classic tomato, mozzarella and basil.'],
             ['Pepperoni Pizza', 'Pizza', 11.99, 'Loaded with spicy pepperoni.'],
@@ -45,7 +45,7 @@ class DemoSeeder extends Seeder
             ['Italian Soda', 'Drinks', 2.99, 'Sparkling fruit soda.'],
         ]);
 
-        $burger = $this->makeRestaurant('Burger Barn', 'Juicy hand-pressed burgers and fries.', 'Tariq Road, Karachi', 24.8570, 67.0010, 4.4);
+        $burger = $this->makeRestaurant('Burger Barn', 'Juicy hand-pressed burgers and fries.', 'Kalanala, Bhavnagar', 21.7700, 72.1520, 4.4);
         $this->seedMenu($burger, $categories, [
             ['Classic Cheeseburger', 'Burgers', 8.49, 'Beef patty with cheddar.'],
             ['Double Bacon Burger', 'Burgers', 10.99, 'Double patty with crispy bacon.'],
@@ -56,7 +56,7 @@ class DemoSeeder extends Seeder
             ['Garden Salad', 'Salads', 5.99, 'Mixed greens and veggies.'],
         ]);
 
-        $sushi = $this->makeRestaurant('Sushi Zen', 'Fresh sushi and Japanese favourites.', 'Clifton Block 5, Karachi', 24.8650, 67.0200, 4.8);
+        $sushi = $this->makeRestaurant('Sushi Zen', 'Fresh sushi and Japanese favourites.', 'Jewel Circle, Bhavnagar', 21.7620, 72.1380, 4.8);
         $this->seedMenu($sushi, $categories, [
             ['California Roll', 'Sushi', 6.99, 'Crab, avocado and cucumber.'],
             ['Salmon Nigiri', 'Sushi', 7.49, 'Fresh salmon over rice.'],
@@ -70,11 +70,11 @@ class DemoSeeder extends Seeder
 
         // -------- 5 completed orders (only seed once) --------
         if (Order::query()->doesntExist()) {
-            $this->makeCompletedOrder($customer1, $bella, $rider1, ['Margherita Pizza' => 1, 'Tiramisu' => 2, 'Italian Soda' => 1], 5, 'House 12, Street 4, DHA Phase 5', 24.8602, 67.0312);
-            $this->makeCompletedOrder($customer1, $burger, $rider2, ['Double Bacon Burger' => 2, 'Crispy Fries' => 1, 'Fresh Lemonade' => 2], 4, 'Flat 3B, Seaview Apartments', 24.8051, 67.0290);
-            $this->makeCompletedOrder($customer2, $sushi, $rider1, ['California Roll' => 1, 'Salmon Nigiri' => 2, 'Green Tea' => 1], 3, 'Office 7, Business Bay', 24.8700, 67.0310);
-            $this->makeCompletedOrder($customer2, $bella, $rider2, ['Pepperoni Pizza' => 1, 'Caesar Salad' => 1], 2, 'House 88, Gulshan Block 6', 24.9200, 67.0900);
-            $this->makeCompletedOrder($customer1, $sushi, $rider1, ['Dragon Roll' => 1, 'Edamame' => 1, 'Mochi Ice Cream' => 2], 1, 'Apartment 21, Clifton', 24.8120, 67.0290);
+            $this->makeCompletedOrder($customer1, $bella, $rider1, ['Margherita Pizza' => 1, 'Tiramisu' => 2, 'Italian Soda' => 1], 5, 'House 12, Waghawadi Road, Bhavnagar', 21.7550, 72.1460);
+            $this->makeCompletedOrder($customer1, $burger, $rider2, ['Double Bacon Burger' => 2, 'Crispy Fries' => 1, 'Fresh Lemonade' => 2], 4, 'Flat 3B, Takhteshwar, Bhavnagar', 21.7610, 72.1500);
+            $this->makeCompletedOrder($customer2, $sushi, $rider1, ['California Roll' => 1, 'Salmon Nigiri' => 2, 'Green Tea' => 1], 3, 'Office 7, Jewel Circle, Bhavnagar', 21.7630, 72.1390);
+            $this->makeCompletedOrder($customer2, $bella, $rider2, ['Pepperoni Pizza' => 1, 'Caesar Salad' => 1], 2, 'House 88, Ghogha Circle, Bhavnagar', 21.7710, 72.1550);
+            $this->makeCompletedOrder($customer1, $sushi, $rider1, ['Dragon Roll' => 1, 'Edamame' => 1, 'Mochi Ice Cream' => 2], 1, 'Apartment 21, Hill Drive, Bhavnagar', 21.7520, 72.1410);
         }
     }
 
@@ -113,7 +113,6 @@ class DemoSeeder extends Seeder
                 'address'     => $address,
                 'lat'         => $lat,
                 'lng'         => $lng,
-                'logo'        => "restaurants/{$imageSlug}_logo.jpg",
                 'banner'      => "restaurants/{$imageSlug}_banner.jpg",
                 'is_open'     => true,
                 'rating'      => $rating,

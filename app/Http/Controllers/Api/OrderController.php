@@ -21,6 +21,34 @@ class OrderController extends Controller
     public function __construct(private OrderService $orderService) {}
 
     /**
+     * POST /api/orders/payment-intent
+     * Get a Stripe PaymentIntent client secret for checkout.
+     */
+    public function paymentIntent(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'restaurant_id'        => ['required', 'integer', 'exists:restaurants,id'],
+            'items'                => ['required', 'array', 'min:1'],
+            'items.*.menu_item_id' => ['required', 'integer', 'exists:menu_items,id'],
+            'items.*.quantity'     => ['required', 'integer', 'min:1', 'max:99'],
+        ]);
+
+        try {
+            $result = $this->orderService->createPaymentIntent(auth('api')->user(), $data);
+            return response()->json($result);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'errors' => $e->errors(),
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to create payment intent: ' . $e->getMessage(),
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
      * POST /api/orders
      * Place a new order from the customer's cart.
      */
@@ -35,6 +63,7 @@ class OrderController extends Controller
             'lat'                  => ['nullable', 'numeric', 'between:-90,90'],
             'lng'                  => ['nullable', 'numeric', 'between:-180,180'],
             'notes'                => ['nullable', 'string', 'max:1000'],
+            'payment_intent_id'    => ['nullable', 'string', 'max:255'],
         ]);
 
         // auth('api')->user() is the logged-in customer.
@@ -67,7 +96,7 @@ class OrderController extends Controller
     {
         $this->authorizeOwner($order);
 
-        $order->load(['items.menuItem', 'statusHistory', 'restaurant']);
+        $order->load(['items.menuItem', 'statusHistory', 'restaurant', 'rider']);
 
         return (new OrderResource($order))->response();
     }

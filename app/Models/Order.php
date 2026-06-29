@@ -33,6 +33,7 @@ class Order extends Model
         'lat',
         'lng',
         'notes',
+        'payment_intent_id',
         'restaurant_payout_id',
         'rider_payout_id',
     ];

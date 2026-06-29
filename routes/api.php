@@ -50,6 +50,7 @@ Route::get('menu-items/{menuItem}',       [MenuController::class, 'show']);
 
 // ---- Orders (customer must be logged in) ----
 Route::middleware('auth:api')->group(function () {
+    Route::post('orders/payment-intent',  [OrderController::class, 'paymentIntent']);
     Route::post('orders',                 [OrderController::class, 'store']);
     Route::get('orders',                  [OrderController::class, 'index']);
     Route::get('orders/{order}',          [OrderController::class, 'show']);

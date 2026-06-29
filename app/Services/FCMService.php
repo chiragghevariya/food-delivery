@@ -30,23 +30,25 @@ class FCMService
      * @param  array        $data      optional extra key/value data
      * @return bool          true if FCM accepted the message
      */
-    public function sendToDevice(?string $fcmToken, string $title, string $body, array $data = []): bool
+    public function sendToDevice(?string $fcmToken, string $title, string $body, array $data = [], string $target = 'customer'): bool
     {
         // No device token -> nothing to send.
         if (empty($fcmToken)) {
             return false;
         }
 
-        $projectId = config('services.fcm.project_id');
+        $projectId = $target === 'rider'
+            ? config('services.fcm.rider_project_id')
+            : config('services.fcm.project_id');
 
         // Firebase not set up yet -> skip quietly (handy during development).
         if (empty($projectId)) {
-            Log::info('FCM not configured (no project id) — skipping push.', ['title' => $title]);
+            Log::info("FCM not configured (no project id for target: $target) — skipping push.", ['title' => $title]);
             return false;
         }
 
         try {
-            $accessToken = $this->getAccessToken();
+            $accessToken = $this->getAccessToken($target);
 
             if (! $accessToken) {
                 return false;
@@ -90,13 +92,16 @@ class FCMService
      * service-account JSON. The token is cached for ~55 minutes so we don't
      * ask Google for a new one on every notification.
      */
-    protected function getAccessToken(): ?string
+    protected function getAccessToken(string $target = 'customer'): ?string
     {
-        return Cache::remember('fcm_access_token', now()->addMinutes(55), function () {
-            $credentialsPath = config('services.fcm.credentials');
+        $cacheKey = "fcm_access_token_{$target}";
+        return Cache::remember($cacheKey, now()->addMinutes(55), function () use ($target) {
+            $credentialsPath = $target === 'rider'
+                ? config('services.fcm.rider_credentials')
+                : config('services.fcm.credentials');
 
             if (! $credentialsPath || ! is_file($credentialsPath)) {
-                Log::warning('FCM service-account file not found.', ['path' => $credentialsPath]);
+                Log::warning("FCM service-account file not found for target: $target.", ['path' => $credentialsPath]);
                 return null;
             }
 

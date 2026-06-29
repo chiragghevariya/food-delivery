@@ -20,6 +20,7 @@ class OrderResource extends JsonResource
             'status'       => $this->status->value,   // e.g. "pending"
             'customer_id'  => $this->customer_id,
             'rider_id'     => $this->rider_id,
+            'payment_intent_id' => $this->payment_intent_id,
 
             // money
             'subtotal'     => $this->subtotal,
@@ -43,6 +44,16 @@ class OrderResource extends JsonResource
                 'address' => $this->restaurant->address,
                 'lat'     => $this->restaurant->lat,
                 'lng'     => $this->restaurant->lng,
+            ]),
+
+            // rider info (only when loaded)
+            'rider'        => $this->whenLoaded('rider', fn () => [
+                'id'                  => $this->rider->id,
+                'name'                => $this->rider->name,
+                'phone'               => $this->rider->phone,
+                'lat'                 => $this->rider->lat,
+                'lng'                 => $this->rider->lng,
+                'location_updated_at' => $this->rider->location_updated_at?->toIso8601String(),
             ]),
 
             // the ordered items (only when loaded)

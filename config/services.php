@@ -37,10 +37,18 @@ return [
 
     // Firebase Cloud Messaging (push notifications) — used by App\Services\FCMService
     'fcm' => [
-        'project_id'  => env('FIREBASE_PROJECT_ID'),
-        // path to the service-account JSON; defaults to storage/app/firebase/service-account.json
-        'credentials' => env('FIREBASE_CREDENTIALS') ?: storage_path('app/firebase/service-account.json'),
-        'server_key'  => env('FIREBASE_SERVER_KEY'), // legacy (kept only as a placeholder)
+        'project_id'        => env('FIREBASE_PROJECT_ID'),
+        'credentials'       => env('FIREBASE_CREDENTIALS') ?: storage_path('app/firebase/service-account.json'),
+        'rider_project_id'  => env('FIREBASE_RIDER_PROJECT_ID'),
+        'rider_credentials' => env('FIREBASE_RIDER_CREDENTIALS') ?: storage_path('app/firebase/service-account-rider.json'),
+        'server_key'        => env('FIREBASE_SERVER_KEY'), // legacy (kept only as a placeholder)
+    ],
+
+    // Stripe Payment Gateway settings
+    'stripe' => [
+        'key' => env('STRIPE_KEY'),
+        'secret' => env('STRIPE_SECRET'),
+        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
     ],
 
 ];
